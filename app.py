@@ -165,7 +165,7 @@ def render_left_panel(row):
 <div class="product-panel">
 <div style="text-align: center; margin-bottom: 24px;">
 <!-- Placeholder Immagine TV/Profumo -->
-<img src="https://placehold.co/200x150/f3f4f6/a1a1aa?text=Product+Img" style="border-radius: 4px; width: 100%;">
+<img src="https://cdn-1-profumeriemallardo.server.it/shop/150336-large_default/chanel-n-5-edp-vapo-100.jpg" style="border-radius: 4px; width: 100%;">
 </div>
 <div class="panel-label">ID</div>
 <div class="panel-value" style="color: #3b82f6;">{row['id']}</div>
