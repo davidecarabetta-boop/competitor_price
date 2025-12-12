@@ -14,7 +14,7 @@ st.set_page_config(
     page_title="Price Intelligence Hub",
     page_icon="📈",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # CSS Custom per replicare lo stile GfK/Minderest
@@ -290,14 +290,47 @@ st.write("")
 # Caricamento Dati
 df = load_data_gfk_style()
 
-# Barra di ricerca in alto
+# -- SIDEBAR RESTORED --
+with st.sidebar:
+    st.title("⚙️ Filtri & Config")
+    st.text_input("🔑 API Key", type="password")
+    st.divider()
+    
+    st.subheader("Filtra Prodotti")
+    # Filtro Brand
+    all_brands = sorted(df['brand'].unique())
+    selected_brands = st.multiselect("Brand", all_brands, default=all_brands)
+    
+    # Filtro Categoria
+    all_cats = sorted(df['category'].unique())
+    selected_cats = st.multiselect("Category", all_cats, default=all_cats)
+    
+    if st.button("🔄 Refresh Data"):
+        st.cache_data.clear()
+        st.rerun()
+
+# Applicazione Filtri al DataFrame
+df_filtered = df[df['brand'].isin(selected_brands) & df['category'].isin(selected_cats)]
+
+if df_filtered.empty:
+    st.error("Nessun prodotto trovato con i filtri correnti.")
+    st.stop()
+
+# Barra di ricerca in alto (usa df_filtered)
 col_search, col_date_start, col_date_end, col_btn = st.columns([4, 1, 1, 1])
 with col_search:
     # Dropdown che sembra una search bar
-    product_list = df.apply(lambda x: f"{x['object'].product_name} (ID: {x['id']})", axis=1).tolist()
+    product_list = df_filtered.apply(lambda x: f"{x['object'].product_name} (ID: {x['id']})", axis=1).tolist()
+    # Gestione caso lista vuota post filtro
+    if not product_list:
+        st.warning("Nessun prodotto disponibile.")
+        st.stop()
+        
     selection = st.selectbox("Search products...", product_list, label_visibility="collapsed")
-    selected_idx = product_list.index(selection)
-    selected_row = df.iloc[selected_idx]
+    
+    # Trova l'indice corretto nel df filtrato
+    selected_id_str = selection.split("(ID: ")[1].replace(")", "")
+    selected_row = df_filtered[df_filtered['id'] == selected_id_str].iloc[0]
 
 with col_date_start:
     st.date_input("Start", datetime.now() - timedelta(days=30), label_visibility="collapsed")
