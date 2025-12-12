@@ -160,36 +160,29 @@ def load_data_gfk_style():
 
 def render_left_panel(row):
     """Pannello laterale identico all'immagine"""
-    # IMPORTANTE: HTML allineato a sinistra senza indentazione per evitare che venga renderizzato come codice
+    # IMPORTANTE: Rimuoviamo l'indentazione interna per evitare che Markdown lo interpreti come 'Code Block'
     html_content = f"""
 <div class="product-panel">
-    <div style="text-align: center; margin-bottom: 24px;">
-            <!-- Placeholder Immagine TV/Profumo -->
-        <img src="https://placehold.co/200x150/f3f4f6/a1a1aa?text=Product+Img" style="border-radius: 4px; width: 100%;">
-    </div>
-    
-    <div class="panel-label">ID</div>
-    <div class="panel-value" style="color: #3b82f6;">{row['id']}</div>
-    
-    <div class="panel-label">Brand</div>
-    <div class="panel-value" style="color: #3b82f6;">{row['brand']}</div>
-
-    <div class="panel-label">MPN</div>
-    <div class="panel-value" style="color: #3b82f6;">{row['mpn']}</div>
-
-    <div class="panel-label">EAN</div>
-    <div class="panel-value">{row['ean']}</div>
-
-    <div class="panel-label">Price</div>
-    <div class="panel-value-price">€ {row['my_price']:.2f}</div>
-
-    <div class="panel-label">Stock</div>
-    <span class="{ 'stock-in' if row['my_stock'] == 'In stock' else 'stock-out' }">
-        {row['my_stock']}
-    </span>
-    
-    <div class="panel-label">Category</div>
-    <div style="background: #f3f4f6; padding: 2px 6px; display: inline-block; font-size: 12px; border-radius: 2px;">{row['category']}</div>
+<div style="text-align: center; margin-bottom: 24px;">
+<!-- Placeholder Immagine TV/Profumo -->
+<img src="https://placehold.co/200x150/f3f4f6/a1a1aa?text=Product+Img" style="border-radius: 4px; width: 100%;">
+</div>
+<div class="panel-label">ID</div>
+<div class="panel-value" style="color: #3b82f6;">{row['id']}</div>
+<div class="panel-label">Brand</div>
+<div class="panel-value" style="color: #3b82f6;">{row['brand']}</div>
+<div class="panel-label">MPN</div>
+<div class="panel-value" style="color: #3b82f6;">{row['mpn']}</div>
+<div class="panel-label">EAN</div>
+<div class="panel-value">{row['ean']}</div>
+<div class="panel-label">Price</div>
+<div class="panel-value-price">€ {row['my_price']:.2f}</div>
+<div class="panel-label">Stock</div>
+<span class="{ 'stock-in' if row['my_stock'] == 'In stock' else 'stock-out' }">
+{row['my_stock']}
+</span>
+<div class="panel-label">Category</div>
+<div style="background: #f3f4f6; padding: 2px 6px; display: inline-block; font-size: 12px; border-radius: 2px;">{row['category']}</div>
 </div>
 """
     st.markdown(html_content, unsafe_allow_html=True)
@@ -206,7 +199,7 @@ def render_chart(row):
     symbols = ['circle', 'diamond', 'square', 'cross', 'x']
     
     for i, (merchant, prices) in enumerate(history.items()):
-        is_me = merchant == "Noi"
+        is_me = merchant == "Sensation Profumerie"
         
         fig.add_trace(go.Scatter(
             x=dates, y=prices,
