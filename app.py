@@ -1,10 +1,8 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import random
-import time
 
 # Importiamo la logica dal core
 from price_tracker_core import ProductRanking, get_mock_data, PriceIntelligenceEngine
@@ -13,319 +11,322 @@ from price_tracker_core import ProductRanking, get_mock_data, PriceIntelligenceE
 # CONFIGURAZIONE PAGINA
 # ==============================================================================
 st.set_page_config(
-    page_title="Price Intelligence Dashboard",
-    page_icon="",
+    page_title="Price Intelligence Hub",
+    page_icon="📈",
     layout="wide",
-    initial_sidebar_state="collapsed" # Nascondiamo la sidebar per dare spazio alla UI principale
+    initial_sidebar_state="collapsed"
 )
 
-# Stile CSS per replicare il look "Clean" dell'immagine
+# CSS Custom per replicare lo stile GfK/Minderest
 st.markdown("""
 <style>
-    .product-card {
+    /* Global Font & Background */
+    .stApp {
+        background-color: #f8f9fa;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    /* Product Card (Left Panel) */
+    .product-panel {
         background-color: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
+        padding: 24px;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border: 1px solid #e5e7eb;
+        height: 100%;
     }
-    .metric-value {
-        font-size: 24px;
-        font-weight: bold;
-        color: #1f2937;
-    }
-    .metric-label {
-        font-size: 12px;
-        color: #6b7280;
+    .panel-label {
+        font-size: 11px;
+        color: #9ca3af;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        font-weight: 600;
+        margin-top: 16px;
+        margin-bottom: 4px;
     }
-    .stock-badge-in {
-        background-color: #dcfce7;
-        color: #166534;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 12px;
+    .panel-value {
+        font-size: 14px;
+        color: #111827;
+        font-weight: 500;
+    }
+    .panel-value-price {
+        font-size: 20px;
+        color: #1f2937;
         font-weight: bold;
     }
-    .stock-badge-out {
-        background-color: #fee2e2;
-        color: #991b1b;
-        padding: 4px 8px;
+    
+    /* Stock Badges */
+    .stock-in {
+        background-color: #d1fae5;
+        color: #065f46;
+        padding: 4px 12px;
         border-radius: 4px;
         font-size: 12px;
-        font-weight: bold;
+        font-weight: 700;
+        display: inline-block;
     }
-    /* Forza bordo tabelle */
-    .stDataFrame { border: 1px solid #e5e7eb; }
+    .stock-out {
+        background-color: #fef3c7; /* Giallo come nell'immagine */
+        color: #92400e;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 700;
+        display: inline-block;
+    }
+
+    /* Table Styling */
+    .stDataFrame {
+        border: 1px solid #e5e7eb;
+        background-color: white;
+    }
+    
+    /* Top Bar Styling */
+    .top-bar {
+        background-color: white;
+        padding: 15px 20px;
+        border-bottom: 1px solid #e5e7eb;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# FUNZIONI DI SUPPORTO & MOCK AVANZATO
+# DATI & LOGICA
 # ==============================================================================
 
 def extract_brand(product_name):
-    known_brands = ["Acqua di Parma", "Jean Paul Gaultier", "Yves Saint Laurent", "Dolce & Gabbana", "Chanel", "Dior", "Gucci"]
-    for brand in known_brands:
-        if product_name.lower().startswith(brand.lower()):
-            return brand
+    # Semplice euristica
     return product_name.split()[0]
 
-def generate_competitor_history(base_price, competitor_name):
-    """Genera una serie storica coerente per un competitor"""
+def generate_history(base_price, variance=0.05):
+    """Genera serie storica realistica"""
     dates = [datetime.now() - timedelta(days=i) for i in range(30, -1, -1)]
     prices = []
-    
-    # Randomizziamo il comportamento del competitor (Aggressivo, Stabile, Caro)
-    behavior = random.choice(['aggressive', 'stable', 'premium'])
-    
-    current_price = base_price * (0.95 if behavior == 'aggressive' else 1.05)
-    
+    current = base_price
     for _ in range(31):
-        change = random.uniform(-1.0, 1.0)
-        if behavior == 'aggressive': change -= 0.05
-        current_price += change
-        prices.append(round(max(current_price, base_price * 0.7), 2))
-        
+        change = random.uniform(-variance, variance)
+        current = max(base_price * 0.7, current * (1 + change))
+        prices.append(round(current, 2))
     return dates, prices
 
 @st.cache_data
-def load_data_advanced():
-    """Carica dati estesi per supportare la vista dettagliata"""
+def load_data_gfk_style():
+    """Prepara i dati nel formato esatto richiesto dalla UI target"""
     raw_data = get_mock_data()
     products = [ProductRanking(**item) for item in raw_data]
     analyzed_products = PriceIntelligenceEngine.enrich_data(products)
     
-    extended_data = []
+    ui_data = []
     for p in analyzed_products:
         brand = extract_brand(p.product_name)
         
-        # Simuliamo dati extra che non vengono dall'API ma servono per la UI "figa"
-        mpn = f"{brand[:3].upper()}-{random.randint(1000, 9999)}"
+        # Generiamo dati extra per matchare l'interfaccia
+        mpn = f"{brand[:3].upper()}{random.randint(100,999)}XYZ"
         ean = f"{random.randint(1000000000000, 9999999999999)}"
-        stock_status = "In Stock" if random.random() > 0.2 else "Out of Stock"
+        my_stock = "Out of stock" if random.random() > 0.7 else "In stock"
         
-        # Simuliamo storico per 3 competitor fittizi + Noi
-        competitors_history = {}
-        # 1. Noi
-        _, my_prices = generate_competitor_history(p.total_cost, "Noi")
-        competitors_history["Noi"] = my_prices
+        # Storico Competitor
+        history = {}
+        # Noi (Retailer A - Blue)
+        _, prices_me = generate_history(p.total_cost, 0.01)
+        history["Noi"] = prices_me
         
-        # 2. Competitor reali dall'API (Top 2)
-        for offer in p.best_offers[:2]:
-            _, prices = generate_competitor_history(offer.price, offer.merchant)
-            competitors_history[offer.merchant] = prices
+        # Competitors (Retailer B, C - Colors)
+        for i, offer in enumerate(p.best_offers[:4]):
+            _, prices_comp = generate_history(offer.price, 0.03)
+            history[offer.merchant] = prices_comp
             
-        # 3. Competitor Market Min (fittizio se serve)
-        dates, min_prices = generate_competitor_history(p.min_price_shipping_market, "Market Min")
-
-        extended_data.append({
-            "SKU": p.sku,
-            "Prodotto": p.product_name,
-            "Brand": brand,
-            "Categoria": p.category,
-            "Mio Prezzo": p.total_cost,
-            "Min Mercato": p.min_price_shipping_market,
-            "Gap (€)": p.price_gap,
-            "Rank": p.rank_with_shipping,
-            "MPN": mpn,
-            "EAN": ean,
-            "Stock": stock_status,
-            "History_Dates": dates,
-            "History_Data": competitors_history,
-            "BestOffers": p.best_offers,
-            "object": p
+        ui_data.append({
+            "object": p,
+            "id": p.sku,
+            "brand": brand,
+            "mpn": mpn,
+            "ean": ean,
+            "my_price": p.total_cost,
+            "my_stock": my_stock,
+            "category": p.category,
+            "history_dates": _,
+            "history_prices": history
         })
     
-    return pd.DataFrame(extended_data)
+    return pd.DataFrame(ui_data)
 
 # ==============================================================================
-# UI COMPONENT: PRODUCT HEADER (LEFT COLUMN)
+# UI COMPONENTS
 # ==============================================================================
-def render_product_card(row):
+
+def render_left_panel(row):
+    """Pannello laterale identico all'immagine"""
     st.markdown(f"""
-    <div class="product-card">
-        <div style="display: flex; justify-content: center; margin-bottom: 20px;">
-             <!-- Placeholder Immagine -->
-            <div style="width: 200px; height: 200px; background-color: #f3f4f6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #9ca3af;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            </div>
+    <div class="product-panel">
+        <div style="text-align: center; margin-bottom: 24px;">
+             <!-- Placeholder Immagine TV/Profumo -->
+            <img src="https://placehold.co/200x150/f3f4f6/a1a1aa?text=Product+Img" style="border-radius: 4px; width: 100%;">
         </div>
         
-        <div style="margin-bottom: 15px;">
-            <div class="metric-label">ID</div>
-            <div style="font-family: monospace; color: #4b5563;">{row['SKU']}</div>
-        </div>
+        <div class="panel-label">ID</div>
+        <div class="panel-value" style="color: #3b82f6;">{row['id']}</div>
         
-        <div style="margin-bottom: 15px;">
-            <div class="metric-label">Brand</div>
-            <div style="font-weight: 600;">{row['Brand']}</div>
-        </div>
+        <div class="panel-label">Brand</div>
+        <div class="panel-value" style="color: #3b82f6;">{row['brand']}</div>
 
-        <div style="margin-bottom: 15px;">
-             <div class="metric-label">MPN / EAN</div>
-             <div style="font-size: 12px; color: #4b5563;">{row['MPN']}<br>{row['EAN']}</div>
-        </div>
+        <div class="panel-label">MPN</div>
+        <div class="panel-value" style="color: #3b82f6;">{row['mpn']}</div>
 
-        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e5e7eb;">
+        <div class="panel-label">EAN</div>
+        <div class="panel-value">{row['ean']}</div>
 
-        <div style="margin-bottom: 15px;">
-            <div class="metric-label">Il tuo Prezzo</div>
-            <div class="metric-value">€ {row['Mio Prezzo']:.2f}</div>
-        </div>
+        <div class="panel-label">Price</div>
+        <div class="panel-value-price">€ {row['my_price']:.2f}</div>
 
-        <div style="margin-bottom: 15px;">
-            <div class="metric-label">Stock Status</div>
-            <span class="{ 'stock-badge-in' if row['Stock'] == 'In Stock' else 'stock-badge-out' }">
-                {row['Stock']}
-            </span>
-        </div>
-         <div style="margin-bottom: 15px;">
-            <div class="metric-label">Categoria</div>
-            <div style="font-size: 14px; color: #374151; background: #f3f4f6; padding: 2px 8px; border-radius: 12px; display: inline-block;">{row['Categoria']}</div>
-        </div>
+        <div class="panel-label">Stock</div>
+        <span class="{ 'stock-in' if row['my_stock'] == 'In stock' else 'stock-out' }">
+            {row['my_stock']}
+        </span>
+        
+        <div class="panel-label">Category</div>
+        <div style="background: #f3f4f6; padding: 2px 6px; display: inline-block; font-size: 12px; border-radius: 2px;">{row['category']}</div>
     </div>
     """, unsafe_allow_html=True)
 
-# ==============================================================================
-# UI COMPONENT: CHART & TABLE (RIGHT COLUMN)
-# ==============================================================================
-def render_analysis_panel(row):
-    # 1. FILTRI DATA (Visual)
-    c1, c2, c3 = st.columns([1, 1, 4])
-    with c1:
-        st.date_input("Dal", datetime.now() - timedelta(days=30))
-    with c2:
-        st.date_input("Al", datetime.now())
-    with c3:
-        st.write("") # Spacer
-
-    # 2. GRAFICO AVANZATO
-    history_data = row['History_Data']
-    dates = row['History_Dates']
+def render_chart(row):
+    """Grafico stile GfK: Linee tratteggiate e marker"""
+    dates = row['history_dates']
+    history = row['history_prices']
     
     fig = go.Figure()
     
-    # Aggiungi traccia per ogni competitor
-    colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'] # Palette colori
-    for i, (competitor, prices) in enumerate(history_data.items()):
-        is_me = competitor == "Noi"
-        line_style = dict(width=3) if is_me else dict(width=2, dash='dot')
-        opacity = 1.0 if is_me else 0.7
+    # Palette colori simile all'immagine (Blu scuro, Arancio, Rosso, Verde, Viola)
+    colors = ['#1e40af', '#f97316', '#dc2626', '#16a34a', '#9333ea']
+    symbols = ['circle', 'diamond', 'square', 'cross', 'x']
+    
+    for i, (merchant, prices) in enumerate(history.items()):
+        is_me = merchant == "Noi"
         
         fig.add_trace(go.Scatter(
-            x=dates, 
-            y=prices,
+            x=dates, y=prices,
             mode='lines+markers',
-            name=competitor,
-            line=line_style,
-            marker=dict(size=6 if is_me else 4),
-            opacity=opacity,
-            line_color=colors[i % len(colors)]
+            name=merchant,
+            line=dict(
+                color=colors[i % len(colors)], 
+                width=2, 
+                dash='solid' if is_me else 'dash' # Tratteggiato per gli altri
+            ),
+            marker=dict(symbol=symbols[i % len(symbols)], size=6)
         ))
 
     fig.update_layout(
-        title="Trend Prezzi Competitor (30 Giorni)",
+        height=350,
+        margin=dict(l=20, r=20, t=20, b=20),
         plot_bgcolor='white',
         paper_bgcolor='white',
-        xaxis=dict(showgrid=False),
+        xaxis=dict(showgrid=True, gridcolor='#f3f4f6', tickformat="%d %b"),
         yaxis=dict(showgrid=True, gridcolor='#f3f4f6'),
-        hovermode="x unified",
-        height=400,
-        margin=dict(l=0, r=0, t=40, b=0),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # 3. TABELLA COMPETITOR DETTAGLIATA
-    st.subheader("Dettaglio Offerte Competitor")
+def render_table(row):
+    """Tabella Competitor dettagliata"""
+    p_obj = row['object']
     
-    # Costruiamo i dati per la tabella
-    comp_table_data = []
+    table_data = []
     
-    # Aggiungiamo 'Noi'
-    comp_table_data.append({
-        "Retailer": "🔵 Noi",
-        "Product": row['Prodotto'],
-        "Price": row['Mio Prezzo'],
-        "Diff %": 0.0,
-        "Stock": row['Stock'],
-        "Updated": datetime.now().strftime("%d-%m-%Y %H:%M")
+    # Aggiungi Noi
+    table_data.append({
+        "Web": "🔵 Noi",
+        "Product": row['object'].product_name,
+        "Price": f"€ {row['my_price']}",
+        "Diff": "-",
+        "Stock": row['my_stock'],
+        "Updated": datetime.now().strftime("%d-%m-%y %H:%M")
     })
     
-    # Aggiungiamo Competitor
-    for offer in row['BestOffers']:
-        diff_pct = ((offer.price - row['Mio Prezzo']) / row['Mio Prezzo']) * 100
-        # Simuliamo stock competitor
-        comp_stock = "In Stock" if random.random() > 0.1 else "Out of Stock"
+    # Aggiungi Competitor
+    for offer in p_obj.best_offers:
+        diff_val = offer.price - row['my_price']
+        diff_pct = (diff_val / row['my_price']) * 100
+        color = "red" if diff_val < 0 else "green"
         
-        comp_table_data.append({
-            "Retailer": f"🔴 {offer.merchant}",
-            "Product": row['Prodotto'], # Spesso i nomi variano leggermente
-            "Price": offer.price,
-            "Diff %": diff_pct,
-            "Stock": comp_stock,
-            "Updated": (datetime.now() - timedelta(minutes=random.randint(5, 120))).strftime("%d-%m-%Y %H:%M")
+        stock_status = "In stock" if random.random() > 0.2 else "Out of stock"
+        
+        table_data.append({
+            "Web": f"🔴 {offer.merchant}",
+            "Product": row['object'].product_name, # Simuliamo link
+            "Price": f"€ {offer.price:.2f}",
+            "Diff": f"{diff_pct:+.1f}%", # Questo andrebbe colorato
+            "Stock": stock_status,
+            "Updated": (datetime.now() - timedelta(minutes=random.randint(10, 300))).strftime("%d-%m-%y %H:%M")
         })
+        
+    df_t = pd.DataFrame(table_data)
     
-    df_comp = pd.DataFrame(comp_table_data)
-    
-    # Visualizzazione tabella custom
+    # Render tabella custom
     st.dataframe(
-        df_comp,
+        df_t,
         column_config={
-            "Retailer": st.column_config.TextColumn("Web / Retailer", width="medium"),
-            "Product": st.column_config.TextColumn("Product Name", width="large"),
-            "Price": st.column_config.NumberColumn("Price (€)", format="%.2f"),
-            "Diff %": st.column_config.NumberColumn("Diff", format="%.1f%%"),
-            "Stock": st.column_config.TextColumn("Stock"),
-            "Updated": st.column_config.TextColumn("Updated"),
+            "Web": st.column_config.TextColumn("Web / Retailer", width="medium"),
+            "Product": st.column_config.TextColumn("Product", width="large"),
+            "Price": st.column_config.TextColumn("Price", width="small"),
+            "Diff": st.column_config.TextColumn("Diff %", width="small"), # Streamlit base non supporta HTML nelle celle facilmente
+            "Stock": st.column_config.TextColumn("Stock", width="small"),
+            "Updated": st.column_config.TextColumn("Updated", width="medium"),
         },
         use_container_width=True,
         hide_index=True
     )
 
 # ==============================================================================
-# MAIN APP LOGIC
+# MAIN APP
 # ==============================================================================
 
+# Header finto stile GfK
+st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/GfK_logo.svg/200px-GfK_logo.svg.png", width=60) # Logo placeholder
+st.write("")
+
 # Caricamento Dati
-df = load_data_advanced()
+df = load_data_gfk_style()
 
-# 1. BARRA DI RICERCA / SELEZIONE PRODOTTO (Top Bar)
-st.title("Price Intelligence Hub")
-col_search, col_kpi = st.columns([2, 1])
-
+# Barra di ricerca in alto
+col_search, col_date_start, col_date_end, col_btn = st.columns([4, 1, 1, 1])
 with col_search:
-    # Creiamo un selettore che funge da "Ricerca"
-    product_options = df.apply(lambda x: f"{x['SKU']} - {x['Prodotto']}", axis=1).tolist()
-    selected_option = st.selectbox("🔎 Cerca Prodotto o Seleziona dalla lista:", product_options)
-    
-    # Estraiamo SKU selezionato
-    selected_sku = selected_option.split(" - ")[0]
-    selected_row = df[df['SKU'] == selected_sku].iloc[0]
+    # Dropdown che sembra una search bar
+    product_list = df.apply(lambda x: f"{x['object'].product_name} (ID: {x['id']})", axis=1).tolist()
+    selection = st.selectbox("Search products...", product_list, label_visibility="collapsed")
+    selected_idx = product_list.index(selection)
+    selected_row = df.iloc[selected_idx]
 
-with col_kpi:
-    # Piccolo riassunto dello stato del prodotto selezionato
-    rank = selected_row['Rank']
-    color = "green" if rank == 1 else "red"
-    st.markdown(f"""
-    <div style="text-align: right; padding-top: 20px;">
-        <span style="font-size: 14px; color: #6b7280;">Current Rank</span><br>
-        <span style="font-size: 32px; font-weight: 800; color: {color};">#{rank}</span>
-    </div>
-    """, unsafe_allow_html=True)
+with col_date_start:
+    st.date_input("Start", datetime.now() - timedelta(days=30), label_visibility="collapsed")
+with col_date_end:
+    st.date_input("End", datetime.now(), label_visibility="collapsed")
+with col_btn:
+    st.button("Apply", type="primary", use_container_width=True)
 
 st.divider()
 
-# 2. LAYOUT MASTER (Split View come nell'immagine)
-col_left, col_right = st.columns([1, 3]) # 25% Sinistra, 75% Destra
+# Layout Principale
+col_left, col_right = st.columns([1, 3])
 
 with col_left:
-    render_product_card(selected_row)
+    render_left_panel(selected_row)
 
 with col_right:
-    render_analysis_panel(selected_row)
+    # Grafico
+    render_chart(selected_row)
+    
+    st.write("")
+    st.write("")
+    
+    # Controlli Tabella
+    c1, c2 = st.columns([1, 5])
+    with c1:
+        st.selectbox("Display", ["3 records", "5 records", "All"], label_visibility="collapsed")
+    with c2:
+        st.text_input("Filter by text...", label_visibility="collapsed", placeholder="Filter by text...")
 
-st.caption("Developed with Ping Pong and Bruno")
+    # Tabella
+    render_table(selected_row)
