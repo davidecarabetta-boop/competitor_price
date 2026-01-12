@@ -241,3 +241,56 @@ if __name__ == "__main__":
     products = [ProductRanking(**item) for item in get_mock_data()]
     analyzed = PriceIntelligenceEngine.enrich_data(products)
     print(f"Test completato. Analizzati {len(analyzed)} prodotti.")
+
+import pandas as pd
+
+def get_gsheet_data() -> List[Dict[str, Any]]:
+    """
+    Legge i dati dal Google Sheet pubblico e li trasforma nel formato
+    richiesto dal ProductRanking.
+    """
+    # URL di esportazione CSV del tuo foglio
+    sheet_id = "1cnnxfowByYo6lwValEU_1YCT8ZQZO4mwSiwqeNx1wiA"
+    gid = "797884028"
+    url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+    
+    try:
+        logger.info("Caricamento dati da Google Sheets...")
+        df = pd.read_csv(url)
+        
+        # Pulizia nomi colonne (rimuove spazi e rende minuscolo per facilità)
+        df.columns = [c.strip() for c in df.columns]
+        
+        products_list = []
+        
+        for _, row in df.iterrows():
+            # MAPPATURA: Adattiamo i nomi delle colonne di Kaggle al nostro modello
+            # Nota: Sostituisci i nomi tra parentesi quadre se nel tuo foglio si chiamano diversamente
+            price = float(str(row.get('price', 0)).replace('$', '').replace(',', ''))
+            
+            product_dict = {
+                "Sku": str(row.get('id', row.get('sku', 'N/A'))),
+                "Category": str(row.get('category', 'Generale')),
+                "Product": str(row.get('name', row.get('title', 'Prodotto senza nome'))),
+                "Price": price,
+                "ShippingCost": 0.0,
+                "TotalCost": price,
+                "MinPrice": price * 0.95, # Simuliamo un minimo di mercato
+                "MinPriceWithShippingCost": price * 0.95,
+                "Rank": random.randint(1, 5),
+                "RankWithShippingCost": random.randint(1, 5),
+                "NbMerchants": random.randint(3, 15),
+                "NbOffers": random.randint(5, 20),
+                "Popularity": random.randint(1, 100),
+                "BestOffers": [
+                    {"Price": price * 0.98, "Merchant": "Competitor A", "Rating": 4.5},
+                    {"Price": price * 1.02, "Merchant": "Competitor B", "Rating": 4.0},
+                    {"Price": price, "Merchant": "Noi", "Rating": 5.0}
+                ]
+            }
+            products_list.append(product_dict)
+            
+        return products_list
+    except Exception as e:
+        logger.error(f"Errore durante il caricamento da GSheet: {e}")
+        return []
