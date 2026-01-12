@@ -1,4 +1,4 @@
-importimport os
+import os
 import requests
 import logging
 import csv
@@ -27,10 +27,10 @@ class BestOffer(BaseModel):
 
 class ProductRanking(BaseModel):
     sku: str = Field(alias="Sku")
-    brand: str = Field(default="N/A", alias="Brand") # Aggiunto Brand
+    brand: str = Field(default="N/A", alias="Brand")
     category: str = Field(alias="Category")
     product_name: str = Field(alias="Product")
-    image_url: str = Field(default="", alias="ImageUrl") # Aggiunto per le immagini reali
+    image_url: str = Field(default="", alias="ImageUrl")
     my_price: float = Field(alias="Price")
     shipping_cost: float = Field(alias="ShippingCost")
     total_cost: float = Field(alias="TotalCost")
@@ -83,17 +83,21 @@ def get_gsheet_data() -> List[Dict[str, Any]]:
         
         products_list = []
         for i, row in df.iterrows():
-            # Estrazione Prezzo (usa amountMax del dataset)
+            # Estrazione Prezzo
             try:
                 price = float(row.get('prices.amountMax', 0))
             except:
                 price = 0.0
             
-            if price == 0: continue
+            if price == 0 or pd.isna(price): 
+                continue
 
-            # Gestione Immagine (prende la prima della lista se presente)
-            image_list = str(row.get('imageURLs', ''))
-            image_url = image_list.split(',')[0] if image_list else "https://via.placeholder.com/150"
+            # Gestione Immagine (evita errori se la cella è vuota o NaN)
+            image_raw = row.get('imageURLs', '')
+            if pd.isna(image_raw) or image_raw == '':
+                image_url = "https://via.placeholder.com/300?text=Immagine+Non+Disponibile"
+            else:
+                image_url = str(image_raw).split(',')[0].strip()
 
             # MAPPATURA COLONNE KAGGLE -> MODELLO INTERNO
             product_dict = {
@@ -119,6 +123,7 @@ def get_gsheet_data() -> List[Dict[str, Any]]:
                 ]
             }
             products_list.append(product_dict)
+            
         return products_list
     except Exception as e:
         logger.error(f"Errore GSheet: {e}")
