@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import random
 
 # Importiamo la logica dal core
-from price_tracker_core import ProductRanking, get_mock_data, PriceIntelligenceEngine
+from price_tracker_core import ProductRanking, get_mock_data, PriceIntelligenceEngine, get_gsheet_data
 
 # ==============================================================================
 # CONFIGURAZIONE PAGINA
