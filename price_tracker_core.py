@@ -119,7 +119,6 @@ def get_gsheet_data() -> List[Dict[str, Any]]:
                 ]
             }
             products_list.append(product_dict)
-            
         return products_list
     except Exception as e:
         logger.error(f"Errore GSheet: {e}")
