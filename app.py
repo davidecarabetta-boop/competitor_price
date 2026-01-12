@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import random
 
-# Importiamo la logica dal core (assicurati che price_tracker_core.py sia aggiornato)
+# Importiamo la logica dal core
 from price_tracker_core import ProductRanking, PriceIntelligenceEngine, get_gsheet_data
 
 # ==============================================================================
