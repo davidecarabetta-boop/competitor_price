@@ -2,6 +2,8 @@ import os
 import requests
 import logging
 import csv
+import pandas as pd # <--- ASSICURATI CHE CI SIA QUESTO
+import random       # <--- E QUESTO
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, field_validator
