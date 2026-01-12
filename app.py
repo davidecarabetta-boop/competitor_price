@@ -113,9 +113,19 @@ def generate_history(base_price, variance=0.05):
     return dates, prices
 
 @st.cache_data
+# Importa la nuova funzione all'inizio se non l'hai fatto
+# from price_tracker_core import get_gsheet_data 
+
+@st.cache_data
 def load_data_gfk_style():
-    """Prepara i dati nel formato esatto richiesto dalla UI target"""
-    raw_data = get_mock_data()
+    """Prepara i dati dal Google Sheet"""
+    # CAMBIO QUI: Usiamo get_gsheet_data() invece di get_mock_data()
+    raw_data = get_gsheet_data() 
+    
+    if not raw_data:
+        st.error("Non è stato possibile caricare i dati dal foglio Google.")
+        return pd.DataFrame()
+
     products = [ProductRanking(**item) for item in raw_data]
     analyzed_products = PriceIntelligenceEngine.enrich_data(products)
     
@@ -123,21 +133,20 @@ def load_data_gfk_style():
     for p in analyzed_products:
         brand = extract_brand(p.product_name)
         
-        # Generiamo dati extra per matchare l'interfaccia
+        # Dati extra per la UI
         mpn = f"{brand[:3].upper()}{random.randint(100,999)}XYZ"
         ean = f"{random.randint(1000000000000, 9999999999999)}"
-        my_stock = "Out of stock" if random.random() > 0.7 else "In stock"
+        my_stock = "Out of stock" if random.random() > 0.8 else "In stock"
         
-        # Storico Competitor
+        # Storico Competitor (generato per il grafico)
         history = {}
-        # Noi (Retailer A - Blue)
-        _, prices_me = generate_history(p.total_cost, 0.01)
-        history["Noi"] = prices_me
+        dates, prices_me = generate_history(p.total_cost, 0.01)
+        history["Sensation Profumerie"] = prices_me # Nome della tua azienda
         
-        # Competitors (Retailer B, C - Colors)
-        for i, offer in enumerate(p.best_offers[:4]):
-            _, prices_comp = generate_history(offer.price, 0.03)
-            history[offer.merchant] = prices_comp
+        for i, offer in enumerate(p.best_offers):
+            if offer.merchant != "Noi":
+                _, prices_comp = generate_history(offer.price, 0.03)
+                history[offer.merchant] = prices_comp
             
         ui_data.append({
             "object": p,
@@ -148,7 +157,7 @@ def load_data_gfk_style():
             "my_price": p.total_cost,
             "my_stock": my_stock,
             "category": p.category,
-            "history_dates": _,
+            "history_dates": dates,
             "history_prices": history
         })
     
